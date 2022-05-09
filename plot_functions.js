@@ -4,6 +4,68 @@ import { tables } from './helpers/tab.js';
 import { correlogram } from './helpers/correl.js';
 import { lineplot } from './helpers/line.js';
 
+var griddb = require('griddb_node');
+const csv = require('csv-parser');
+const fs = require('fs');
+
+const factory = griddb.StoreFactory.getInstance();
+const store = factory.getStore({
+    "host": '239.0.0.1',
+    "port": 31999,
+    "clusterName": "defaultCluster",
+    "username": "admin",
+    "password": "admin"
+});
+// For connecting to the GridDB Server we have to make containers and specify the schema.
+const colConInfo = new griddb.ContainerInfo({
+    'name': "Weather",
+    'columnInfoList': [
+      ["DATE", griddb.Type.DOUBLE],
+      ["WIND", griddb.Type.DOUBLE],
+      ["IND", griddb.Type.INTEGER],
+      ["RAIN", griddb.Type.DOUBLE],
+      ["IND.1", griddb.Type.INTEGER],
+      ["T.MAX", griddb.Type.DOUBLE],
+      ["IND.2", griddb.Type.INTEGER],
+      ["T.MIN", griddb.Type.DOUBLE],
+      ["T.MIN.G", griddb.Type.DOUBLE]
+    ],
+    'type': griddb.ContainerType.TIME_SERIES, 'rowKey': true
+});
+
+fs.createReadStream('./dataset/windspeed.csv')
+  .pipe(csv())
+  .on('data', (row) => {
+    var col2;
+    store.putContainer(conInfo, false)
+       .then(col => {
+            col2 = col;
+           col.createIndex("count", griddb.GS_INDEX_FLAG_DEFAULT);
+           return col;
+        })
+       .then(col => {
+           col.setAutoCommit(false);
+           col.put([convertDateToTimeStamp(row['DATE']), row['WIND'], row['IND'], row['RAIN'], row['IND.1'], row['T.MAX'], row['IND.2'], row['T.MIN'], row['T.MIN.G']]);
+           return col;
+       })
+  })
+  .on('end', () => {
+    console.log('CSV file successfully processed');
+  });
+
+var data = []
+store.getContainer("Weather")
+       .then(ts => {
+       query = ts.query("select * from Weather");
+       return query.fetch();
+   }).then(rowset => {
+       var row;
+       while (rowset.hasNext()) {
+           row = rowset.next();
+           data.push(row);
+           }
+        )
+
 const countNotNull = (array) => {
     let count = 0
     for(let i = 0; i < array.length; i++){
@@ -94,5 +156,6 @@ const displayHisto = (data) => {
 }
 
 
+displayHisto(data)
 
-d3.csv("./dataset/windspeed.csv", displayHisto)
+// d3.csv("./dataset/windspeed.csv", displayHisto)
