@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
     "danfojs-node": "^1.1.1",
     "http": "^0.0.1-security",
     "http-server": "^14.1.0",
